@@ -25,20 +25,27 @@ struct KeyBuffer {
 
 impl KeyBuffer {
     
-    fn random() -> Self {
+    pub fn random() -> Self {
         let mut key = KeyBuffer::default();
         thread_rng().fill(&mut key.secondary);
         key
     }
 
-    fn next(&mut self) {
+    pub fn next(&mut self) {
+        let next_pubkey: *mut u8;
+        if self.is_first {
+            next_pubkey = self.primary.as_mut_ptr();
+        } else {
+            next_pubkey = self.secondary.as_mut_ptr();
+        }
+        let next_privkey = self.pubkey().as_ptr();
         unsafe {
-            curve25519_generate_public(self.pubkey_mut_ptr(), self.privkey().as_ptr());
+            curve25519_generate_public(next_pubkey, next_privkey);
         }
         self.is_first = !self.is_first;
     }
 
-    fn privkey(&self) -> &[u8; 32] {
+    pub fn privkey(&self) -> &[u8; 32] {
         if self.is_first {
             return &self.primary;
         } else {
@@ -46,25 +53,12 @@ impl KeyBuffer {
         }
     }
 
-    fn pubkey(&self) -> &[u8; 32] {
+    pub fn pubkey(&self) -> &[u8; 32] {
         if self.is_first {
             return &self.secondary;
         } else {
             return &self.primary;
         }
-    }
-
-    fn pubkey_mut_ptr(&mut self) -> *mut u8 {
-        if self.is_first {
-            return self.secondary.as_mut_ptr()
-        } else {
-            return self.primary.as_mut_ptr()
-        }
-
-    }
-
-    fn search(&self, term: &str) -> bool {
-        base64::encode(self.pubkey()).contains(term)
     }
 
 }
@@ -138,7 +132,7 @@ impl ComputeController<'_> {
             let start = Instant::now();
             for _ in 0..self.reseed_rate {
                 key.next();
-                if key.search(self.search_term) {
+                if base64::encode(key.pubkey()).contains(self.search_term) {
                     self.sender.lock().unwrap().send(ComputeEvent::Match(key.clone())).unwrap();
                 }
             }
@@ -202,7 +196,7 @@ fn main() {
         let start = Instant::now();
         let flush_rate = Duration::from_millis(300);
         let mut flush = start;
-        println!("total hashes: 0");
+        println!("");
         loop {
             match receiver.recv().unwrap() {
                 ComputeEvent::Reseed(duration) => { 
