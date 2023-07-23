@@ -23,6 +23,7 @@ typedef struct fe { u32 v[10]; } fe;
  */
 typedef struct fe_loose { u32 v[10]; } fe_loose;
 
+__host__ __device__
 static __always_inline void fe_frombytes_impl(u32 h[10], const u8 *s)
 {
 	/* Ignores top bit of s. */
@@ -46,11 +47,13 @@ static __always_inline void fe_frombytes_impl(u32 h[10], const u8 *s)
 	h[9] = (a7>> 6)&((1<<25)-1); /*                                     25 */
 }
 
+__host__ __device__
 static __always_inline void fe_frombytes(fe *h, const u8 *s)
 {
 	fe_frombytes_impl(h->v, s);
 }
 
+__host__ __device__
 static __always_inline u8 /*bool*/
 addcarryx_u25(u8 /*bool*/ c, u32 a, u32 b, u32 *low)
 {
@@ -62,6 +65,7 @@ addcarryx_u25(u8 /*bool*/ c, u32 a, u32 b, u32 *low)
 	return (x >> 25) & 1;
 }
 
+__host__ __device__
 static __always_inline u8 /*bool*/
 addcarryx_u26(u8 /*bool*/ c, u32 a, u32 b, u32 *low)
 {
@@ -73,6 +77,7 @@ addcarryx_u26(u8 /*bool*/ c, u32 a, u32 b, u32 *low)
 	return (x >> 26) & 1;
 }
 
+__host__ __device__
 static __always_inline u8 /*bool*/
 subborrow_u25(u8 /*bool*/ c, u32 a, u32 b, u32 *low)
 {
@@ -84,6 +89,7 @@ subborrow_u25(u8 /*bool*/ c, u32 a, u32 b, u32 *low)
 	return x >> 31;
 }
 
+__host__ __device__
 static __always_inline u8 /*bool*/
 subborrow_u26(u8 /*bool*/ c, u32 a, u32 b, u32 *low)
 {
@@ -95,12 +101,14 @@ subborrow_u26(u8 /*bool*/ c, u32 a, u32 b, u32 *low)
 	return x >> 31;
 }
 
+__host__ __device__
 static __always_inline u32 cmovznz32(u32 t, u32 z, u32 nz)
 {
 	t = -!!t; /* all set if nonzero, 0 if 0 */
 	return (t&nz) | ((~t)&z);
 }
 
+__host__ __device__
 static __always_inline void fe_freeze(u32 out[10], const u32 in1[10])
 {
 	{ const u32 x17 = in1[9];
@@ -157,6 +165,7 @@ static __always_inline void fe_freeze(u32 out[10], const u32 in1[10])
 	}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
 }
 
+__host__ __device__
 static __always_inline void fe_tobytes(u8 s[32], const fe *f)
 {
 	u32 h[10];
@@ -196,29 +205,34 @@ static __always_inline void fe_tobytes(u8 s[32], const fe *f)
 }
 
 /* h = f */
+__host__ __device__
 static __always_inline void fe_copy(fe *h, const fe *f)
 {
 	memmove(h, f, sizeof(u32) * 10);
 }
 
+__host__ __device__
 static __always_inline void fe_copy_lt(fe_loose *h, const fe *f)
 {
 	memmove(h, f, sizeof(u32) * 10);
 }
 
 /* h = 0 */
+__host__ __device__
 static __always_inline void fe_0(fe *h)
 {
 	memset(h, 0, sizeof(u32) * 10);
 }
 
 /* h = 1 */
+__host__ __device__
 static __always_inline void fe_1(fe *h)
 {
 	memset(h, 0, sizeof(u32) * 10);
 	h->v[0] = 1;
 }
 
+__host__ __device__
 static void fe_add_impl(u32 out[10], const u32 in1[10], const u32 in2[10])
 {
 	{ const u32 x20 = in1[9];
@@ -257,11 +271,13 @@ static void fe_add_impl(u32 out[10], const u32 in1[10], const u32 in2[10])
 /* h = f + g
  * Can overlap h with f or g.
  */
+__host__ __device__
 static __always_inline void fe_add(fe_loose *h, const fe *f, const fe *g)
 {
 	fe_add_impl(h->v, f->v, g->v);
 }
 
+__host__ __device__
 static void fe_sub_impl(u32 out[10], const u32 in1[10], const u32 in2[10])
 {
 	{ const u32 x20 = in1[9];
@@ -300,11 +316,13 @@ static void fe_sub_impl(u32 out[10], const u32 in1[10], const u32 in2[10])
 /* h = f - g
  * Can overlap h with f or g.
  */
+__host__ __device__
 static __always_inline void fe_sub(fe_loose *h, const fe *f, const fe *g)
 {
 	fe_sub_impl(h->v, f->v, g->v);
 }
 
+__host__ __device__
 static void fe_mul_impl(u32 out[10], const u32 in1[10], const u32 in2[10])
 {
 	{ const u32 x20 = in1[9];
@@ -421,22 +439,26 @@ static void fe_mul_impl(u32 out[10], const u32 in1[10], const u32 in2[10])
 	}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
 }
 
+__host__ __device__
 static __always_inline void fe_mul_ttt(fe *h, const fe *f, const fe *g)
 {
 	fe_mul_impl(h->v, f->v, g->v);
 }
 
+__host__ __device__
 static __always_inline void fe_mul_tlt(fe *h, const fe_loose *f, const fe *g)
 {
 	fe_mul_impl(h->v, f->v, g->v);
 }
 
+__host__ __device__
 static __always_inline void
 fe_mul_tll(fe *h, const fe_loose *f, const fe_loose *g)
 {
 	fe_mul_impl(h->v, f->v, g->v);
 }
 
+__host__ __device__
 static void fe_sqr_impl(u32 out[10], const u32 in1[10])
 {
 	{ const u32 x17 = in1[9];
@@ -543,16 +565,19 @@ static void fe_sqr_impl(u32 out[10], const u32 in1[10])
 	}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
 }
 
+__host__ __device__
 static __always_inline void fe_sq_tl(fe *h, const fe_loose *f)
 {
 	fe_sqr_impl(h->v, f->v);
 }
 
+__host__ __device__
 static __always_inline void fe_sq_tt(fe *h, const fe *f)
 {
 	fe_sqr_impl(h->v, f->v);
 }
 
+__host__ __device__
 static __always_inline void fe_loose_invert(fe *out, const fe_loose *z)
 {
 	fe t0;
@@ -603,6 +628,7 @@ static __always_inline void fe_loose_invert(fe *out, const fe_loose *z)
 	fe_mul_ttt(out, &t1, &t0);
 }
 
+__host__ __device__
 static __always_inline void fe_invert(fe *out, const fe *z)
 {
 	fe_loose l;
@@ -615,6 +641,7 @@ static __always_inline void fe_invert(fe *out, const fe *z)
  *
  * Preconditions: b in {0,1}
  */
+__host__ __device__
 static __always_inline void fe_cswap(fe *f, fe *g, unsigned int b)
 {
 	unsigned i;
@@ -628,6 +655,7 @@ static __always_inline void fe_cswap(fe *f, fe *g, unsigned int b)
 }
 
 /* NOTE: based on fiat-crypto fe_mul, edited for in2=121666, 0, 0.*/
+__host__ __device__
 static __always_inline void fe_mul_121666_impl(u32 out[10], const u32 in1[10])
 {
 	{ const u32 x20 = in1[9];
@@ -744,11 +772,13 @@ static __always_inline void fe_mul_121666_impl(u32 out[10], const u32 in1[10])
 	}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}
 }
 
+__host__ __device__
 static __always_inline void fe_mul121666(fe *h, const fe_loose *f)
 {
 	fe_mul_121666_impl(h->v, f->v);
 }
 
+__host__ __device__
 static void curve25519_generic(u8 out[CURVE25519_KEY_SIZE],
 			       const u8 scalar[CURVE25519_KEY_SIZE],
 			       const u8 point[CURVE25519_KEY_SIZE])

@@ -12,6 +12,7 @@
 
 typedef __uint128_t u128;
 
+__host__ __device__
 static __always_inline u64 u64_eq_mask(u64 a, u64 b)
 {
 	u64 x = a ^ b;
@@ -22,6 +23,7 @@ static __always_inline u64 u64_eq_mask(u64 a, u64 b)
 	return c;
 }
 
+__host__ __device__
 static __always_inline u64 u64_gte_mask(u64 a, u64 b)
 {
 	u64 x = a;
@@ -36,6 +38,7 @@ static __always_inline u64 u64_gte_mask(u64 a, u64 b)
 	return c;
 }
 
+__host__ __device__
 static __always_inline void modulo_carry_top(u64 *b)
 {
 	u64 b4 = b[4];
@@ -46,6 +49,7 @@ static __always_inline void modulo_carry_top(u64 *b)
 	b[0] = b0_;
 }
 
+__host__ __device__
 static __always_inline void fproduct_copy_from_wide_(u64 *output, u128 *input)
 {
 	{
@@ -70,6 +74,7 @@ static __always_inline void fproduct_copy_from_wide_(u64 *output, u128 *input)
 	}
 }
 
+__host__ __device__
 static __always_inline void
 fproduct_sum_scalar_multiplication_(u128 *output, u64 *input, u64 s)
 {
@@ -80,6 +85,7 @@ fproduct_sum_scalar_multiplication_(u128 *output, u64 *input, u64 s)
 	output[4] += (u128)input[4] * s;
 }
 
+__host__ __device__
 static __always_inline void fproduct_carry_wide_(u128 *tmp)
 {
 	{
@@ -121,6 +127,7 @@ static __always_inline void fproduct_carry_wide_(u128 *tmp)
 	}
 }
 
+__host__ __device__
 static __always_inline void fmul_shift_reduce(u64 *output)
 {
 	u64 tmp = output[4];
@@ -150,6 +157,7 @@ static __always_inline void fmul_shift_reduce(u64 *output)
 	output[0] = 19 * b0;
 }
 
+__host__ __device__
 static __always_inline void fmul_mul_shift_reduce_(u128 *output, u64 *input,
 						   u64 *input21)
 {
@@ -180,6 +188,7 @@ static __always_inline void fmul_mul_shift_reduce_(u128 *output, u64 *input,
 	fproduct_sum_scalar_multiplication_(output, input, input2i);
 }
 
+__host__ __device__
 static __always_inline void fmul_fmul(u64 *output, u64 *input, u64 *input21)
 {
 	u64 tmp[5] = { input[0], input[1], input[2], input[3], input[4] };
@@ -211,6 +220,7 @@ static __always_inline void fmul_fmul(u64 *output, u64 *input, u64 *input21)
 	}
 }
 
+__host__ __device__
 static __always_inline void fsquare_fsquare__(u128 *tmp, u64 *output)
 {
 	u64 r0 = output[0];
@@ -240,6 +250,7 @@ static __always_inline void fsquare_fsquare__(u128 *tmp, u64 *output)
 	tmp[4] = s4;
 }
 
+__host__ __device__
 static __always_inline void fsquare_fsquare_(u128 *tmp, u64 *output)
 {
 	u128 b4;
@@ -267,6 +278,7 @@ static __always_inline void fsquare_fsquare_(u128 *tmp, u64 *output)
 	output[1] = i1_;
 }
 
+__host__ __device__
 static __always_inline void fsquare_fsquare_times_(u64 *output, u128 *tmp,
 						   u32 count1)
 {
@@ -276,6 +288,7 @@ static __always_inline void fsquare_fsquare_times_(u64 *output, u128 *tmp,
 		fsquare_fsquare_(tmp, output);
 }
 
+__host__ __device__
 static __always_inline void fsquare_fsquare_times(u64 *output, u64 *input,
 						  u32 count1)
 {
@@ -284,6 +297,7 @@ static __always_inline void fsquare_fsquare_times(u64 *output, u64 *input,
 	fsquare_fsquare_times_(output, t, count1);
 }
 
+__host__ __device__
 static __always_inline void fsquare_fsquare_times_inplace(u64 *output,
 							  u32 count1)
 {
@@ -291,6 +305,7 @@ static __always_inline void fsquare_fsquare_times_inplace(u64 *output,
 	fsquare_fsquare_times_(output, t, count1);
 }
 
+__host__ __device__
 static __always_inline void crecip_crecip(u64 *out, u64 *z)
 {
 	u64 buf[20] = { 0 };
@@ -335,6 +350,7 @@ static __always_inline void crecip_crecip(u64 *out, u64 *z)
 	fmul_fmul(out, t0, a);
 }
 
+__host__ __device__
 static __always_inline void fsum(u64 *a, u64 *b)
 {
 	a[0] += b[0];
@@ -344,6 +360,7 @@ static __always_inline void fsum(u64 *a, u64 *b)
 	a[4] += b[4];
 }
 
+__host__ __device__
 static __always_inline void fdifference(u64 *a, u64 *b)
 {
 	u64 tmp[5] = { 0 };
@@ -390,6 +407,7 @@ static __always_inline void fdifference(u64 *a, u64 *b)
 	}
 }
 
+__host__ __device__
 static __always_inline void fscalar(u64 *output, u64 *b, u64 s)
 {
 	u128 tmp[5];
@@ -427,16 +445,19 @@ static __always_inline void fscalar(u64 *output, u64 *b, u64 s)
 	fproduct_copy_from_wide_(output, tmp);
 }
 
+__host__ __device__
 static __always_inline void fmul(u64 *output, u64 *a, u64 *b)
 {
 	fmul_fmul(output, a, b);
 }
 
+__host__ __device__
 static __always_inline void crecip(u64 *output, u64 *input)
 {
 	crecip_crecip(output, input);
 }
 
+__host__ __device__
 static __always_inline void point_swap_conditional_step(u64 *a, u64 *b,
 							u64 swap1, u32 ctr)
 {
@@ -450,6 +471,7 @@ static __always_inline void point_swap_conditional_step(u64 *a, u64 *b,
 	b[i] = bi1;
 }
 
+__host__ __device__
 static __always_inline void point_swap_conditional5(u64 *a, u64 *b, u64 swap1)
 {
 	point_swap_conditional_step(a, b, swap1, 5);
@@ -459,6 +481,7 @@ static __always_inline void point_swap_conditional5(u64 *a, u64 *b, u64 swap1)
 	point_swap_conditional_step(a, b, swap1, 1);
 }
 
+__host__ __device__
 static __always_inline void point_swap_conditional(u64 *a, u64 *b, u64 iswap)
 {
 	u64 swap1 = 0 - iswap;
@@ -466,12 +489,14 @@ static __always_inline void point_swap_conditional(u64 *a, u64 *b, u64 iswap)
 	point_swap_conditional5(a + 5, b + 5, swap1);
 }
 
+__host__ __device__
 static __always_inline void point_copy(u64 *output, u64 *input)
 {
 	memcpy(output, input, 5 * sizeof(*input));
 	memcpy(output + 5, input + 5, 5 * sizeof(*input));
 }
 
+__host__ __device__
 static __always_inline void addanddouble_fmonty(u64 *pp, u64 *ppq, u64 *p,
 						u64 *pq, u64 *qmqp)
 {
@@ -538,6 +563,7 @@ static __always_inline void addanddouble_fmonty(u64 *pp, u64 *ppq, u64 *p,
 	}
 }
 
+__host__ __device__
 static __always_inline void
 ladder_smallloop_cmult_small_loop_step(u64 *nq, u64 *nqpq, u64 *nq2, u64 *nqpq2,
 				       u64 *q, u8 byt)
@@ -550,6 +576,7 @@ ladder_smallloop_cmult_small_loop_step(u64 *nq, u64 *nqpq, u64 *nq2, u64 *nqpq2,
 	point_swap_conditional(nq2, nqpq2, bit);
 }
 
+__host__ __device__
 static __always_inline void
 ladder_smallloop_cmult_small_loop_double_step(u64 *nq, u64 *nqpq, u64 *nq2,
 					      u64 *nqpq2, u64 *q, u8 byt)
@@ -560,6 +587,7 @@ ladder_smallloop_cmult_small_loop_double_step(u64 *nq, u64 *nqpq, u64 *nq2,
 	ladder_smallloop_cmult_small_loop_step(nq2, nqpq2, nq, nqpq, q, byt1);
 }
 
+__host__ __device__
 static __always_inline void
 ladder_smallloop_cmult_small_loop(u64 *nq, u64 *nqpq, u64 *nq2, u64 *nqpq2,
 				  u64 *q, u8 byt, u32 i)
@@ -571,6 +599,7 @@ ladder_smallloop_cmult_small_loop(u64 *nq, u64 *nqpq, u64 *nq2, u64 *nqpq2,
 	}
 }
 
+__host__ __device__
 static __always_inline void ladder_bigloop_cmult_big_loop(u8 *n1, u64 *nq,
 							  u64 *nqpq, u64 *nq2,
 							  u64 *nqpq2, u64 *q,
@@ -583,6 +612,7 @@ static __always_inline void ladder_bigloop_cmult_big_loop(u8 *n1, u64 *nq,
 	}
 }
 
+__host__ __device__
 static void ladder_cmult(u64 *result, u8 *n1, u64 *q)
 {
 	u64 point_buf[40] = { 0 };
@@ -596,6 +626,7 @@ static void ladder_cmult(u64 *result, u8 *n1, u64 *q)
 	point_copy(result, nq);
 }
 
+__host__ __device__
 static __always_inline void format_fexpand(u64 *output, const u8 *input)
 {
 	const u8 *x00 = input + 6;
@@ -620,6 +651,7 @@ static __always_inline void format_fexpand(u64 *output, const u8 *input)
 	output[4] = output4;
 }
 
+__host__ __device__
 static __always_inline void format_fcontract_first_carry_pass(u64 *input)
 {
 	u64 t0 = input[0];
@@ -642,12 +674,14 @@ static __always_inline void format_fcontract_first_carry_pass(u64 *input)
 	input[4] = t4_;
 }
 
+__host__ __device__
 static __always_inline void format_fcontract_first_carry_full(u64 *input)
 {
 	format_fcontract_first_carry_pass(input);
 	modulo_carry_top(input);
 }
 
+__host__ __device__
 static __always_inline void format_fcontract_second_carry_pass(u64 *input)
 {
 	u64 t0 = input[0];
@@ -670,6 +704,7 @@ static __always_inline void format_fcontract_second_carry_pass(u64 *input)
 	input[4] = t4_;
 }
 
+__host__ __device__
 static __always_inline void format_fcontract_second_carry_full(u64 *input)
 {
 	u64 i0;
@@ -686,6 +721,7 @@ static __always_inline void format_fcontract_second_carry_full(u64 *input)
 	input[1] = i1_;
 }
 
+__host__ __device__
 static __always_inline void format_fcontract_trim(u64 *input)
 {
 	u64 a0 = input[0];
@@ -711,6 +747,7 @@ static __always_inline void format_fcontract_trim(u64 *input)
 	input[4] = a4_;
 }
 
+__host__ __device__
 static __always_inline void format_fcontract_store(u8 *output, u64 *input)
 {
 	u64 t0 = input[0];
@@ -732,6 +769,7 @@ static __always_inline void format_fcontract_store(u8 *output, u64 *input)
 	put_unaligned_le64(o3, b3);
 }
 
+__host__ __device__
 static __always_inline void format_fcontract(u8 *output, u64 *input)
 {
 	format_fcontract_first_carry_full(input);
@@ -740,6 +778,7 @@ static __always_inline void format_fcontract(u8 *output, u64 *input)
 	format_fcontract_store(output, input);
 }
 
+__host__ __device__
 static __always_inline void format_scalar_of_point(u8 *scalar, u64 *point)
 {
 	u64 *x = point;
@@ -752,6 +791,7 @@ static __always_inline void format_scalar_of_point(u8 *scalar, u64 *point)
 	format_fcontract(scalar, sc);
 }
 
+__host__ __device__
 static void curve25519_generic(u8 mypublic[CURVE25519_KEY_SIZE],
 			       const u8 secret[CURVE25519_KEY_SIZE],
 			       const u8 basepoint[CURVE25519_KEY_SIZE])

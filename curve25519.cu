@@ -55,28 +55,31 @@ typedef int64_t s64;
 #define __force
 #endif
 
+__host__ __device__
 static __always_inline __unused __le32 get_unaligned_le32(const u8 *a)
 {
 	__le32 l;
 	__builtin_memcpy(&l, a, sizeof(l));
 	return le32_to_cpup(&l);
 }
+__host__ __device__
 static __always_inline __unused __le64 get_unaligned_le64(const u8 *a)
 {
 	__le64 l;
 	__builtin_memcpy(&l, a, sizeof(l));
 	return le64_to_cpup(&l);
 }
+__host__ __device__
 static __always_inline __unused void put_unaligned_le64(u64 s, u8 *d)
 {
 	__le64 l = cpu_to_le64(s);
 	__builtin_memcpy(d, &l, sizeof(l));
 }
 
+__host__ __device__
 static noinline void memzero_explicit(void *s, size_t count)
 {
 	memset(s, 0, count);
-	asm volatile("": :"r"(s) : "memory");
 }
 
 #ifdef __SIZEOF_INT128__
@@ -85,14 +88,16 @@ static noinline void memzero_explicit(void *s, size_t count)
 #include "curve25519-fiat32.h"
 #endif
 
-void curve25519_generate_public(uint8_t pub[static CURVE25519_KEY_SIZE], const uint8_t secret[static CURVE25519_KEY_SIZE])
+__host__ __device__
+void curve25519_generate_public(uint8_t pub[CURVE25519_KEY_SIZE], const uint8_t secret[CURVE25519_KEY_SIZE])
 {
 	static const uint8_t basepoint[CURVE25519_KEY_SIZE] __aligned(sizeof(uintptr_t)) = { 9 };
 
 	curve25519(pub, secret, basepoint);
 }
 
-void curve25519(uint8_t mypublic[static CURVE25519_KEY_SIZE], const uint8_t secret[static CURVE25519_KEY_SIZE], const uint8_t basepoint[static CURVE25519_KEY_SIZE])
+__host__ __device__
+void curve25519(uint8_t mypublic[CURVE25519_KEY_SIZE], const uint8_t secret[CURVE25519_KEY_SIZE], const uint8_t basepoint[CURVE25519_KEY_SIZE])
 {
 	curve25519_generic(mypublic, secret, basepoint);
 }
