@@ -1,14 +1,18 @@
 #include <stdio.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "curve25519.cu"
 #include "base64.c"
 
 #define HASHES_PER_KERNEL 10000
+#define NANOS_PER_MILLI 1000000
+#define MILLIS 1000
 
 __host__ __device__ bool match(uint8_t *key) {
     return (
@@ -52,60 +56,92 @@ __global__ void search_kernel(Keypair *keys) {
     do_search(key);
 }
 
-int main() {
+typedef struct Kernel {
+    Keypair *deviceMem;
+    cudaEvent_t upload;
+    cudaEvent_t done;
+    cudaEvent_t download;
+} Kernel;
 
-    cudaDeviceProp deviceProps;
-    cudaGetDeviceProperties(&deviceProps, 0);
-    int threadsPerSM = 128; //deviceProps.maxThreadsPerMultiProcessor;
-    int numSMs = deviceProps.multiProcessorCount;
-    const int numThreads = threadsPerSM * numSMs;
-    printf(
-        "using %d threads on %d processors (%d total)\n",
-        threadsPerSM, numSMs, numThreads
-    );
+typedef struct State {
+    int randFD;
 
-    int random_fd = open("/dev/random", O_RDONLY);
-    if (random_fd == -1) {
-        printf("Error opening /dev/random\n");
-        return 1;
+    int numSMs;
+    int threadsPerSM;
+    int numThreads;
+    size_t bufferSize;
+    
+    cudaStream_t transfer;
+    Keypair *keys;
+
+    cudaStream_t compute;
+} State;
+
+void scheduleCompute(State s, Kernel kernel) {
+    ssize_t seeded = read(s.randFD, s.keys, s.bufferSize);
+    if (seeded != s.bufferSize) {
+        printf("read RNG error: %d instead of %d\n", seeded, s.bufferSize);
     }
+    cudaMemcpyAsync(kernel.deviceMem, s.keys, s.bufferSize, cudaMemcpyHostToDevice, s.transfer);
+    cudaEventRecord(kernel.upload, s.transfer);
+    cudaStreamWaitEvent(s.compute, kernel.upload);
+    search_kernel<<<s.numSMs, s.threadsPerSM, 0, s.compute>>>(kernel.deviceMem);
+    cudaEventRecord(kernel.done, s.compute);
+}
 
-    size_t buffer_size = sizeof(Keypair) * numThreads;
-    Keypair keys[numThreads];
-
-    ssize_t bytes_read = read(random_fd, &keys, buffer_size);
-    if (bytes_read == -1 || bytes_read < buffer_size) {
-        printf("failed to read from /dev/random\n");
-        return 2;
-    }
-
-    Keypair *device_keys;
-    cudaMalloc((void**)&device_keys, buffer_size);
-    cudaMemcpy(device_keys, &keys, buffer_size, cudaMemcpyHostToDevice);
-
-    search_kernel<<<numSMs, threadsPerSM>>>(device_keys);
-
-    cudaError_t error = cudaGetLastError();
-    if (error != cudaSuccess) {
-        printf("CUDA error: %s\n", cudaGetErrorString(error));
-        return 1;
-    }
-
-    cudaDeviceSynchronize(); // Wait for kernel execution to finish
-    printf("computed %d hashes\n", HASHES_PER_KERNEL * numThreads);
-
-    cudaMemcpy(&keys, device_keys, buffer_size, cudaMemcpyDeviceToHost);
-
-    for (size_t i = 0; i < numThreads; i++) {
-        Keypair *key = &keys[i];
+void checkResult(State s, Kernel kernel) {
+    cudaStreamWaitEvent(s.transfer, kernel.done);
+    cudaMemcpyAsync(s.keys, kernel.deviceMem, s.bufferSize, cudaMemcpyDeviceToHost, s.transfer);
+    cudaEventRecord(kernel.download, s.transfer);
+    printf("synchronize transfer\n");
+    cudaEventSynchronize(kernel.download);
+    for (size_t i = 0; i < s.numThreads; i++) {
+        Keypair *key = &s.keys[i];
         if (key->rounds == 0) {
             continue;
         }
-        printf("holy shit found it: %d %d\n", i, key->rounds);
-        printf("A:\n");
+        printf("Found a match!!! %d %d\n", i, key->rounds);
         print_key(key->a, CURVE25519_KEY_SIZE);
-        printf("B:\n");
         print_key(key->b, CURVE25519_KEY_SIZE);
-        return;
+        exit(0);
+    }
+}
+
+int main() {
+    // initialize state 
+    State s;
+    Kernel primary;
+    Kernel secondary;
+
+    s.randFD = open("/dev/urandom", O_RDONLY);
+
+    cudaDeviceProp deviceProps;
+    cudaGetDeviceProperties(&deviceProps, 0);
+    s.threadsPerSM = 128; //deviceProps.maxThreadsPerMultiProcessor;
+    s.numSMs = deviceProps.multiProcessorCount;
+    s.numThreads = s.threadsPerSM * s.numSMs;
+    s.bufferSize = s.numThreads * sizeof(Keypair);
+    s.keys = (Keypair *) malloc(s.bufferSize);
+
+    cudaStreamCreate(&s.transfer);
+    cudaStreamCreate(&s.compute);
+    cudaEventCreate(&primary.upload);
+    cudaEventCreate(&primary.done);
+    cudaEventCreate(&primary.download);
+    cudaEventCreate(&secondary.upload);
+    cudaEventCreate(&secondary.done);
+    cudaEventCreate(&secondary.download);
+    cudaMalloc((void**)&primary.deviceMem, s.bufferSize);
+    cudaMalloc((void**)&secondary.deviceMem, s.bufferSize);
+
+    scheduleCompute(s, primary);
+    printf("synchronize first transfer\n");
+    cudaEventSynchronize(primary.upload);
+    scheduleCompute(s, secondary);
+    while (true) {
+        checkResult(s, primary);
+        scheduleCompute(s, primary);
+        checkResult(s, secondary);
+        scheduleCompute(s, secondary);
     }
 }
