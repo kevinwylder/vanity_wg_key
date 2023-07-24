@@ -11,8 +11,6 @@
 #include "base64.c"
 
 #define HASHES_PER_KERNEL 10000
-#define NANOS_PER_MILLI 1000000
-#define MILLIS 1000
 
 __host__ __device__ bool match(uint8_t *key) {
     return (
@@ -60,12 +58,17 @@ typedef struct Kernel {
     Keypair *deviceMem;
     cudaEvent_t upload;
     cudaEvent_t done;
-    cudaEvent_t download;
+    cudaEvent_t check;
 } Kernel;
+
+typedef struct Delay {
+    struct timespec whence;
+    float estimate;
+} Delay;
 
 typedef struct State {
     int randFD;
-
+    
     int numSMs;
     int threadsPerSM;
     int numThreads;
@@ -75,6 +78,7 @@ typedef struct State {
     Keypair *keys;
 
     cudaStream_t compute;
+    Delay *delay;
 } State;
 
 void scheduleCompute(State s, Kernel kernel) {
@@ -90,11 +94,14 @@ void scheduleCompute(State s, Kernel kernel) {
 }
 
 void checkResult(State s, Kernel kernel) {
+    printf("sleep\n");
+    sleep(10.0);
     cudaStreamWaitEvent(s.transfer, kernel.done);
     cudaMemcpyAsync(s.keys, kernel.deviceMem, s.bufferSize, cudaMemcpyDeviceToHost, s.transfer);
-    cudaEventRecord(kernel.download, s.transfer);
-    printf("synchronize transfer\n");
-    cudaEventSynchronize(kernel.download);
+    printf("sync\n");
+    cudaStreamSynchronize(s.transfer);
+    cudaEventElapsedTime(&s.delay->estimate, kernel.upload, kernel.done);
+    printf("computed %d hashes in %fms\n", HASHES_PER_KERNEL * s.numThreads, s.delay->estimate);
     for (size_t i = 0; i < s.numThreads; i++) {
         Keypair *key = &s.keys[i];
         if (key->rounds == 0) {
@@ -110,6 +117,7 @@ void checkResult(State s, Kernel kernel) {
 int main() {
     // initialize state 
     State s;
+    Delay delay;
     Kernel primary;
     Kernel secondary;
 
@@ -123,14 +131,18 @@ int main() {
     s.bufferSize = s.numThreads * sizeof(Keypair);
     s.keys = (Keypair *) malloc(s.bufferSize);
 
+    s.delay = &delay;
+    delay.estimate = 11000.0;
+    clock_gettime(CLOCK_MONOTONIC, &delay.whence);
+
     cudaStreamCreate(&s.transfer);
     cudaStreamCreate(&s.compute);
     cudaEventCreate(&primary.upload);
     cudaEventCreate(&primary.done);
-    cudaEventCreate(&primary.download);
+    cudaEventCreate(&primary.check);
     cudaEventCreate(&secondary.upload);
     cudaEventCreate(&secondary.done);
-    cudaEventCreate(&secondary.download);
+    cudaEventCreate(&secondary.check);
     cudaMalloc((void**)&primary.deviceMem, s.bufferSize);
     cudaMalloc((void**)&secondary.deviceMem, s.bufferSize);
 
