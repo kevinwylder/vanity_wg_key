@@ -84,7 +84,7 @@ typedef struct State {
 void scheduleCompute(State s, Kernel kernel) {
     ssize_t seeded = read(s.randFD, s.keys, s.bufferSize);
     if (seeded != s.bufferSize) {
-        printf("read RNG error: %d instead of %d\n", seeded, s.bufferSize);
+        fprintf(stderr, "read RNG error: %d instead of %d\n", seeded, s.bufferSize);
     }
     cudaMemcpyAsync(kernel.deviceMem, s.keys, s.bufferSize, cudaMemcpyHostToDevice, s.transfer);
     cudaEventRecord(kernel.upload, s.transfer);
@@ -94,20 +94,20 @@ void scheduleCompute(State s, Kernel kernel) {
 }
 
 void checkResult(State s, Kernel kernel) {
-    printf("sleep\n");
+    fprintf(stderr, "sleep\n");
     sleep(10.0);
     cudaStreamWaitEvent(s.transfer, kernel.done);
     cudaMemcpyAsync(s.keys, kernel.deviceMem, s.bufferSize, cudaMemcpyDeviceToHost, s.transfer);
-    printf("sync\n");
+    fprintf(stderr, "sync\n");
     cudaStreamSynchronize(s.transfer);
     cudaEventElapsedTime(&s.delay->estimate, kernel.upload, kernel.done);
-    printf("computed %d hashes in %fms\n", HASHES_PER_KERNEL * s.numThreads, s.delay->estimate);
+    fprintf(stderr, "computed %d hashes in %fms\n", HASHES_PER_KERNEL * s.numThreads, s.delay->estimate);
     for (size_t i = 0; i < s.numThreads; i++) {
         Keypair *key = &s.keys[i];
         if (key->rounds == 0) {
             continue;
         }
-        printf("Found a match!!! %d %d\n", i, key->rounds);
+        fprintf(stderr, "Found a match!!! %d %d\n", i, key->rounds);
         print_key(key->a, CURVE25519_KEY_SIZE);
         print_key(key->b, CURVE25519_KEY_SIZE);
         exit(0);
@@ -147,7 +147,7 @@ int main() {
     cudaMalloc((void**)&secondary.deviceMem, s.bufferSize);
 
     scheduleCompute(s, primary);
-    printf("synchronize first transfer\n");
+    fprintf(stderr, "synchronize first transfer\n");
     cudaEventSynchronize(primary.upload);
     scheduleCompute(s, secondary);
     while (true) {
