@@ -56,15 +56,10 @@ __global__ void search_kernel(Keypair *keys) {
 
 typedef struct Kernel {
     Keypair *deviceMem;
-    cudaEvent_t upload;
-    cudaEvent_t done;
-    cudaEvent_t check;
+    cudaEvent_t ready;
+    cudaEvent_t start;
+    cudaEvent_t finish;
 } Kernel;
-
-typedef struct Delay {
-    struct timespec whence;
-    float estimate;
-} Delay;
 
 typedef struct State {
     int randFD;
@@ -78,7 +73,7 @@ typedef struct State {
     Keypair *keys;
 
     cudaStream_t compute;
-    Delay *delay;
+    float *delay;
 } State;
 
 void scheduleCompute(State s, Kernel kernel) {
@@ -87,21 +82,21 @@ void scheduleCompute(State s, Kernel kernel) {
         fprintf(stderr, "read RNG error: %d instead of %d\n", seeded, s.bufferSize);
     }
     cudaMemcpyAsync(kernel.deviceMem, s.keys, s.bufferSize, cudaMemcpyHostToDevice, s.transfer);
-    cudaEventRecord(kernel.upload, s.transfer);
-    cudaStreamWaitEvent(s.compute, kernel.upload);
+    cudaEventRecord(kernel.ready, s.transfer);
+    cudaStreamWaitEvent(s.compute, kernel.ready);
+    cudaEventRecord(kernel.start, s.compute);
     search_kernel<<<s.numSMs, s.threadsPerSM, 0, s.compute>>>(kernel.deviceMem);
-    cudaEventRecord(kernel.done, s.compute);
+    cudaEventRecord(kernel.finish, s.compute);
 }
 
 void checkResult(State s, Kernel kernel) {
-    fprintf(stderr, "sleep\n");
-    sleep(10.0);
-    cudaStreamWaitEvent(s.transfer, kernel.done);
+    float delay = *s.delay * 0.00099;
+    sleep(delay);
+    cudaStreamWaitEvent(s.transfer, kernel.finish);
     cudaMemcpyAsync(s.keys, kernel.deviceMem, s.bufferSize, cudaMemcpyDeviceToHost, s.transfer);
-    fprintf(stderr, "sync\n");
     cudaStreamSynchronize(s.transfer);
-    cudaEventElapsedTime(&s.delay->estimate, kernel.upload, kernel.done);
-    fprintf(stderr, "computed %d hashes in %fms\n", HASHES_PER_KERNEL * s.numThreads, s.delay->estimate);
+    cudaEventElapsedTime(s.delay, kernel.start, kernel.finish);
+    fprintf(stderr, "computed %d hashes in %fms\n", HASHES_PER_KERNEL * s.numThreads, *s.delay);
     for (size_t i = 0; i < s.numThreads; i++) {
         Keypair *key = &s.keys[i];
         if (key->rounds == 0) {
@@ -116,8 +111,8 @@ void checkResult(State s, Kernel kernel) {
 
 int main() {
     // initialize state 
+    float delay = 11000.0;
     State s;
-    Delay delay;
     Kernel primary;
     Kernel secondary;
 
@@ -132,23 +127,20 @@ int main() {
     s.keys = (Keypair *) malloc(s.bufferSize);
 
     s.delay = &delay;
-    delay.estimate = 11000.0;
-    clock_gettime(CLOCK_MONOTONIC, &delay.whence);
 
     cudaStreamCreate(&s.transfer);
     cudaStreamCreate(&s.compute);
-    cudaEventCreate(&primary.upload);
-    cudaEventCreate(&primary.done);
-    cudaEventCreate(&primary.check);
-    cudaEventCreate(&secondary.upload);
-    cudaEventCreate(&secondary.done);
-    cudaEventCreate(&secondary.check);
+    cudaEventCreate(&primary.ready);
+    cudaEventCreate(&primary.start);
+    cudaEventCreate(&primary.finish);
+    cudaEventCreate(&secondary.ready);
+    cudaEventCreate(&secondary.start);
+    cudaEventCreate(&secondary.finish);
     cudaMalloc((void**)&primary.deviceMem, s.bufferSize);
     cudaMalloc((void**)&secondary.deviceMem, s.bufferSize);
 
     scheduleCompute(s, primary);
-    fprintf(stderr, "synchronize first transfer\n");
-    cudaEventSynchronize(primary.upload);
+    cudaEventSynchronize(primary.ready);
     scheduleCompute(s, secondary);
     while (true) {
         checkResult(s, primary);
