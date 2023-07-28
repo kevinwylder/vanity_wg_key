@@ -96,7 +96,13 @@ void checkResult(State s, Kernel kernel) {
     cudaMemcpyAsync(s.keys, kernel.deviceMem, s.bufferSize, cudaMemcpyDeviceToHost, s.transfer);
     cudaStreamSynchronize(s.transfer);
     cudaEventElapsedTime(s.delay, kernel.start, kernel.finish);
-    fprintf(stderr, "computed %d hashes in %fms\n", HASHES_PER_KERNEL * s.numThreads, *s.delay);
+    fprintf(
+        stderr,
+        "computed %d hashes in %fms (%d hashes per second)\n",
+        HASHES_PER_KERNEL * s.numThreads,
+        *s.delay,
+        (int) (1000 *  (HASHES_PER_KERNEL * s.numThreads / *s.delay))
+    );
     for (size_t i = 0; i < s.numThreads; i++) {
         Keypair *key = &s.keys[i];
         if (key->rounds == 0) {
