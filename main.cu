@@ -14,11 +14,11 @@
 
 __host__ __device__ bool match(uint8_t *key) {
     return (
-        key[0] == 0x93 && 
-        key[1] == 0x0c && 
-        key[2] == 0xa5 && 
-        key[3] == 0x75 && 
-        key[4] == 0xea && 
+        key[0] == 0x93 &&
+        key[1] == 0x0c &&
+        key[2] == 0xa5 &&
+        key[3] == 0x75 &&
+        key[4] == 0xea &&
         key[5] >= 0xc0
    );
 }
@@ -111,6 +111,7 @@ void checkResult(State s, Kernel kernel) {
         fprintf(stderr, "Found a match!!! %d %d\n", i, key->rounds);
         print_key(key->a, CURVE25519_KEY_SIZE);
         print_key(key->b, CURVE25519_KEY_SIZE);
+        // system("/home/kwylder/vanitykey/on_finish.sh");
         exit(0);
     }
 }
